@@ -1,0 +1,11 @@
+*.sw[pnol]
+*.py[co]
+*.egg-info
+venv/
+__pycache__/
+.cache/
+.pytest_cache/
+dist/
+build/
+.vscode
+.DS_Store
