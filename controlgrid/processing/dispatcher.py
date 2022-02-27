@@ -1,63 +1,95 @@
 import os
-import subprocess as sp
+import pexpect
 
-from datetime import datetime
+from uuid import uuid4
+from queue import Empty, Queue
 from concurrent.futures import ThreadPoolExecutor
-from typing import List
+from typing import Callable, Coroutine
 
-from appyratus.utils.type_utils import TypeUtils
+from appyratus.utils.time_utils import TimeUtils
 
-from controlgrid.ipc import Channel
-from controlgrid.log import log
-
-from .job import Job, JobResult
+from controlgrid.processing.job import Job, Line, Message
 
 
 class JobDispatcher:
-    def __init__(self, max_workers: int = None):
-        self._max_worker = max_workers or os.cpu_count()
-        self._executor = ThreadPoolExecutor(max_workers=self._max_worker)
-        self._output_channel = Channel("ipc:///tmp/cg-runner-output.sock")
-        self._output_channel.publish(None)
+    def __init__(self, max_workers: int = None) -> None:
+        self._max_workers = max(4, max_workers or (os.cpu_count() * 2))
+        self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
+        self._message_queue = Queue()
 
-    def submit(self, job: Job):
-        self._executor.submit(self.target, job)
+    @property
+    def is_ready(self) -> bool:
+        return len(self._message_queue) > 0
 
-    def target(self, job: Job):
-        args = [job.command] + job.args
-        exception: BaseException = None
-        stdout = []
-        stderr = []
-        log.info(f"running job {job.id}")
+    def dispatch(self, job: Job):
+        self._executor.submit(self._process_job, job)
 
+    def consume(self, callback: Callable[[Message], None]):
+        while self._message_queue.qsize() > 0:
+            msg = None
+            try:
+                msg = self._message_queue.get(timeout=0.1)
+                if msg is not None:
+                    callback(msg)
+            except Empty:
+                return
+
+    async def consume_async(self, callback: Callable[[Message], Coroutine]):
+        while self._message_queue.qsize() > 0:
+            msg = None
+            try:
+                msg = self._message_queue.get(timeout=0.1)
+                if msg is not None:
+                    await callback(msg)
+            except Empty:
+                return
+
+    def _process_job(self, job: Job):
+        def readlines(child: pexpect.spawn):
+            while not child.closed:
+                line = child.readline()
+                if not line:
+                    return StopIteration()
+                yield line
+
+        # spawn subprocess and push each line of stdout & stderr onto
+        # output queue as they come in.
+        child = pexpect.spawn(job.command, job.args, encoding="utf-8")
         try:
-            start = datetime.now()
-            proc = sp.run(args, capture_output=True)
-            if proc.stdout:
-                stdout = proc.stdout.decode().split("\n")
-            if proc.stderr:
-                stderr = proc.stderr.decode().split("\n")
-        except BaseException as exc:
-            exc_name = TypeUtils.get_class_name(exc)
-            log.exception(f"unexpected {exc_name} processing job {job.id}")
-            exception = exc
+            for idx, line in enumerate(readlines(child)):
+                timestamp = TimeUtils.utc_timestamp()
+                text = line.rstrip()
+                msg = Message(job.id, timestamp, Line(idx, text), None)
+                self._message_queue.put(msg)
         finally:
-            end = datetime.now()
+            child.close()
 
-        if exception is None:
-            log.info(f"job {job.id} finished running")
+        # after the subprocess has finished, push a final item on
+        # the output queue containing the exit status code.
+        self._message_queue.put(
+            Message(job.id, TimeUtils.utc_timestamp(), None, child.exitstatus)
+        )
 
-        try:
-            self._output_channel.publish(
-                JobResult(
-                    job=job,
-                    time=(start - end),
-                    exc=exception,
-                    stdout=stdout,
-                    stderr=stderr,
+
+if __name__ == "__main__":
+    from threading import Thread
+    from time import sleep
+
+    def main():
+        dispatcher = JobDispatcher()
+
+        def consume():
+            while True:
+                dispatcher.consume(
+                    lambda msg: print(msg.line.text) if msg.line else None
                 )
-            )
-        except Exception:
-            import traceback
+                sleep(0.1)
 
-            traceback.print_exc()
+        consumer = Thread(target=consume, daemon=True)
+        consumer.start()
+        while True:
+            input()
+            job = Job(id=uuid4().hex, command="do-it", args=[])
+            dispatcher.dispatch(job)
+
+    main()

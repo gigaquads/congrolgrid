@@ -1,4 +1,5 @@
 from typing import List
+from uuid import uuid4
 
 from fastapi import Request
 from pydantic import BaseModel
@@ -15,5 +16,8 @@ class Body(BaseModel):
 
 @app.post("/jobs")
 async def dispatch_job(body: Body, request: Request) -> None:
-    dispatcher.submit(Job(body.command, body.args))
-    return {}
+    job = Job(uuid4().hex, body.command, body.args)
+    # TODO: write job to DB
+    # TODO: dispatch job post-commit
+    dispatcher.submit(job)
+    return job
