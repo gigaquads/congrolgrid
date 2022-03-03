@@ -1,7 +1,9 @@
 import asyncio
 
+from dataclasses import asdict
+
 from appyratus.json import JsonEncoder
-from fastapi import WebSocket
+from fastapi import WebSocket, WebSocketDisconnect
 
 from controlgrid.processing.dispatcher import JobDispatcher, Message
 from controlgrid.api.app import app
@@ -15,17 +17,25 @@ async def stream(websocket: WebSocket) -> None:
 
     async def send(message: Message):
         try:
-            json_str = json.encode(message)
+            json_str = json.encode(asdict(message))
         except ValueError:
             log.exception("JSON encode error")
 
         await websocket.send_text(json_str)
 
     await websocket.accept()
+    reconnect = False
     try:
         while True:
+            if reconnect:
+                await websocket.accept()
+                reconnect = False
             await asyncio.sleep(0.1)
-            if dispatcher.has_output:
-                await dispatcher.consume_async(send)
+            if dispatcher.is_ready:
+                try:
+                    await dispatcher.consume_async(send)
+                except WebSocketDisconnect:
+                    log.info("websocket disconnect. reconnecting to client")
+                    reconnect = True
     except Exception:
         log.exception("websocket error")

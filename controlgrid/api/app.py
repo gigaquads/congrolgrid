@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from daemon.controlgrid.processing.dispatcher import JobDispatcher
+from controlgrid.processing.dispatcher import JobDispatcher
 
 
 app = FastAPI()

@@ -16,10 +16,11 @@ class JobDispatcher:
         self._max_workers = max(4, max_workers or (os.cpu_count() * 2))
         self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
         self._message_queue = Queue()
+        self._queue_size = 0
 
     @property
     def is_ready(self) -> bool:
-        return len(self._message_queue) > 0
+        return self._queue_size > 0
 
     def dispatch(self, job: Job):
         self._executor.submit(self._process_job, job)
@@ -29,6 +30,7 @@ class JobDispatcher:
             msg = None
             try:
                 msg = self._message_queue.get(timeout=0.1)
+                self._queue_size -= 1
                 if msg is not None:
                     callback(msg)
             except Empty:
@@ -39,6 +41,7 @@ class JobDispatcher:
             msg = None
             try:
                 msg = self._message_queue.get(timeout=0.1)
+                self._queue_size -= 1
                 if msg is not None:
                     await callback(msg)
             except Empty:
@@ -61,6 +64,7 @@ class JobDispatcher:
                 text = line.rstrip()
                 msg = Message(job.id, timestamp, Line(idx, text), None)
                 self._message_queue.put(msg)
+                self._queue_size += 1
         finally:
             child.close()
 
@@ -87,9 +91,12 @@ if __name__ == "__main__":
 
         consumer = Thread(target=consume, daemon=True)
         consumer.start()
+
         while True:
             input()
-            job = Job(id=uuid4().hex, command="do-it", args=[])
+            job = Job(
+                id=uuid4().hex, command="ls", args=["-l"]
+            )
             dispatcher.dispatch(job)
 
     main()
