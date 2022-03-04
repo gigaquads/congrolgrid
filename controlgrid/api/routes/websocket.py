@@ -11,8 +11,8 @@ from controlgrid.api.app import app
 from controlgrid.log import log
 
 
-@app.websocket("/output")
-async def stream(websocket: WebSocket) -> None:
+@app.websocket("/websocket")
+async def websocket(websocket: WebSocket) -> None:
     dispatcher: JobDispatcher = app.dispatcher
     json = JsonEncoder()
 

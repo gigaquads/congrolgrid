@@ -22,7 +22,7 @@ async def dispatch(body: Body, _request: Request) -> None:
     job = Job.create(body.command, body.args, tag=body.tag)
 
     # TODO: write job to DB
-    # TODO: dispatch job post-commit
+    # TODO: dispatch job post-DB commit
 
     # queue job for execution in background process, writing each line of stdout
     # to and output queue (to be consumed by another thread)
