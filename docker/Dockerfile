@@ -6,4 +6,6 @@ WORKDIR /usr/src/app
 
 RUN python setup.py develop
 
+EXPOSE 8000
+
 CMD uvicorn controlgrid.api.app:app --reload
