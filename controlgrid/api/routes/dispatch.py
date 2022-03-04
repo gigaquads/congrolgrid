@@ -12,6 +12,7 @@ class Body(BaseModel):
     command: str
     args: List[str]
     tag: Optional[str]
+    timeout: Optional[int]
 
 
 @app.post("/dispatch")
@@ -19,7 +20,9 @@ async def dispatch(body: Body, _request: Request) -> None:
     """
     Create new job and enqueue for background execution.
     """
-    job = Job.create(body.command, body.args, tag=body.tag)
+    job = Job.create(
+        body.command, body.args, tag=body.tag, timeout=body.timeout
+    )
 
     # TODO: write job to DB
     # TODO: dispatch job post-DB commit
