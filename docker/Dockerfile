@@ -4,10 +4,7 @@ COPY . /usr/src/app
 VOLUME /usr/src/app
 WORKDIR /usr/src/app
 
-# Prevents Python from writing pyc files to disc
-ENV PYTHONDONTWRITEBYTECODE 1
-
-# Prevents Python from buffering stdout and stderr
+# prevents Python from buffering stdout and stderr
 ENV PYTHONUNBUFFERED 1
 
 RUN python setup.py develop
