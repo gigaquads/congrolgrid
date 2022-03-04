@@ -1,26 +1,31 @@
-from typing import List
+from typing import List, Optional
 from dataclasses import asdict
-from uuid import uuid4
 
 from fastapi import Request
 from pydantic import BaseModel
 
-from controlgrid.processing.job import Job
-
-from controlgrid.processing.dispatcher import JobDispatcher
-from ..app import app
+from controlgrid.processing.data import Job
+from controlgrid.api.app import app
 
 
 class Body(BaseModel):
     command: str
     args: List[str]
+    tag: Optional[str]
 
 
 @app.post("/dispatch")
-async def dispatch(body: Body, request: Request) -> None:
-    dispatcher: JobDispatcher = app.dispatcher
-    job = Job(uuid4().hex, body.command, body.args)
+async def dispatch(body: Body, _request: Request) -> None:
+    """
+    Create new job and enqueue for background execution.
+    """
+    job = Job.create(body.command, body.args, tag=body.tag)
+
     # TODO: write job to DB
     # TODO: dispatch job post-commit
-    dispatcher.dispatch(job)
+
+    # queue job for execution in background process, writing each line of stdout
+    # to and output queue (to be consumed by another thread)
+    app.dispatcher.dispatch(job)
+
     return asdict(job)

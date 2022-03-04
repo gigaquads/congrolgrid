@@ -2,10 +2,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from controlgrid.processing.dispatcher import JobDispatcher
+from controlgrid.log import log
 
 
-app = FastAPI()
+class LocalDaemonAPI(FastAPI):
+    dispatcher = JobDispatcher()
+    log = log
 
+
+app = LocalDaemonAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,8 +23,3 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-def init_dispatcher():
-    app.dispatcher = JobDispatcher()
