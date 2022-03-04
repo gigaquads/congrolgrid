@@ -18,6 +18,8 @@ app.add_middleware(
         "http://localhost",
         "http://localhost:8000",
         "http://localhost:3000",
+        "http://cg-daemon:8000",
+        "http://cg-daemon:3000",
     ],
     allow_credentials=True,
     allow_methods=["*"],
