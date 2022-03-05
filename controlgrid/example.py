@@ -1,11 +1,10 @@
 from threading import Thread
 from time import sleep
 
-from controlgrid.processing.dispatcher import JobDispatcher
 from controlgrid.processing.data import Job, OutputLine
 from controlgrid.log import log
 
-
+# XXX: obsolete
 def main() -> None:
     dispatcher = JobDispatcher()
 

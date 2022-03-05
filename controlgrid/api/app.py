@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from controlgrid.processing.dispatcher import JobDispatcher
+from controlgrid.processing.runner import Runner
 from controlgrid.log import log
 
 
 class LocalDaemonAPI(FastAPI):
-    dispatcher = JobDispatcher()
+    runner = Runner()
     log = log
 
 

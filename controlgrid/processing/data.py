@@ -2,7 +2,7 @@ from typing_extensions import Self
 import uuid
 
 from dataclasses import dataclass
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Union
 
 from appyratus.enum import EnumValueStr
 
@@ -54,6 +54,17 @@ class Job:
 
 
 @dataclass
+class JobResult:
+    job: Job
+    output: List[str]
+
+    @classmethod
+    def create(cls, job: Job, output: Union[str, List[str]]) -> Self:
+        output = output.split() if not isinstance(output, list) else output
+        return cls(job, output)
+
+
+@dataclass
 class OutputLine:
     @dataclass
     class Data:
@@ -64,5 +75,10 @@ class OutputLine:
     tag: Optional[str]
     timestamp: int
     data: Optional[Data]
-    exit_code: Optional[int]
     pid: int
+
+
+@dataclass
+class JobStreamEvent:
+    result: Optional[JobResult]
+    line: Optional[OutputLine]
