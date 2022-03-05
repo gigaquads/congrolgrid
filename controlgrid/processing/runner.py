@@ -41,7 +41,7 @@ class Runner:
 
             # split the stdout (which also has stderr) into lines
             stdout = proc.communicate()[0]
-            output = stdout.split()
+            output = stdout.split("\n")
 
         except sp.TimeoutExpired as exc:
             job.status = JobStatus.failed
