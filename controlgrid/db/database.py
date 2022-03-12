@@ -3,6 +3,7 @@ import sqlalchemy as sa
 from typing import Callable, Dict, List, Optional
 
 from sqlalchemy import Table, MetaData
+from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.engine import Engine
 from databases import Database as BaseDatabase
 
@@ -20,6 +21,7 @@ class Database(BaseDatabase):
         self.databases = DatabaseManager()
         self.metadata = metadata
         self.engine = engine
+        self.inspector = Inspector.from_engine(engine)
 
     def add_table(self, factory: TableFactory) -> Table:
         table = factory(self.metadata)
@@ -28,7 +30,7 @@ class Database(BaseDatabase):
 
     def create_tables(self) -> None:
         log.info(f"creating database tables at {self.engine.url}")
-        self.metadata.create_all(self.engine)
+        self.metadata.create_all(self.engine, checkfirst=True)
 
 
 class DatabaseManager:

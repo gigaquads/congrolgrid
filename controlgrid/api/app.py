@@ -38,12 +38,12 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     # etablish database connection. default to SQLite DB,
-    # using a local database file in data/.
+    # using a local database file in data/
     url = app.env.get("DATABASE_URL")
     if not url:
         os.makedirs("./data", exist_ok=True)
-        url = "sqlite:///data/controlgrid.db")
-        
+        url = "sqlite:///data/controlgrid.db"
+
     app.db = await app.databases.connect(url, "db", tables=[tables.jobs])
     app.db.create_tables()
 
