@@ -1,13 +1,12 @@
 from typing import List, Optional
-from dataclasses import asdict
+from uuid import uuid4
 
-from fastapi import Request
+from appyratus.utils.time_utils import TimeUtils
 from pydantic import BaseModel
-from sse_starlette.sse import EventSourceResponse
-from appyratus.json import JsonEncoder
 
-from controlgrid.processing.data import Job, JobStreamEvent
+from controlgrid.db.models import Job
 from controlgrid.api.app import app
+from controlgrid.constants import JobStatus
 
 
 class Body(BaseModel):
@@ -15,31 +14,23 @@ class Body(BaseModel):
     args: List[str]
     tag: Optional[str]
     timeout: Optional[int]
+    stream: str
 
 
 @app.post("/stream")
-async def stream(body: Body, request: Request) -> None:
+async def stream(body: Body) -> Job:
     """
-    Create new job and stream back output line by line.
+    Create new job and write to DB, where it will be picked up by a named
+    stream worker at `/stream/{stream_name}`.
     """
-    json = JsonEncoder()
-    job = Job.create(**body.dict())
-    job_event_generator = app.runner.stream(job)
-
-    async def stream(request: Request) -> str:
-        is_completed = False
-        while not await request.is_disconnected() and (not is_completed):
-            try:
-                for event in job_event_generator:
-                    data = asdict(event)
-                    yield json.encode(data)
-                    if event.result:
-                        is_completed = True
-                        break
-            except ValueError:
-                app.log.exception(
-                    f"JSON encode error when streaming "
-                    f"output for job {job.job_id}"
-                )
-
-    return EventSourceResponse(stream(request))
+    job = await Job(
+        job_id=uuid4().hex,
+        command=body.command,
+        created_at=TimeUtils.utc_now(),
+        args=body.args,
+        tag=body.tag,
+        timeout=body.timeout,
+        stream=body.stream,
+        status=JobStatus.created,
+    ).create(app.db)
+    return job.dict()

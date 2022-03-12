@@ -1,7 +1,7 @@
 from threading import Thread
 from time import sleep
 
-from controlgrid.processing.data import Job, OutputLine
+from controlgrid.processing.data import Job, JobOutput
 from controlgrid.log import log
 
 # XXX: obsolete

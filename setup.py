@@ -12,5 +12,9 @@ if __name__ == "__main__":
             "sse_starlette",
             "uvicorn[standard]",
             "pexpect",
+            "sqlalchemy",
+            "databases[postgresql]",
+            "databases[sqlite]",
+            "zmq",
         ]
     )

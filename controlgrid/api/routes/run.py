@@ -1,10 +1,12 @@
 from typing import List, Optional
-from dataclasses import asdict
+from uuid import uuid4
 
-from fastapi import Request
+from appyratus.utils.time_utils import TimeUtils
 from pydantic import BaseModel
-from controlgrid.processing.data import Job
+
+from controlgrid.db.models import Job, JobResult
 from controlgrid.api.app import app
+from controlgrid.constants import JobStatus
 
 
 class Body(BaseModel):
@@ -15,12 +17,18 @@ class Body(BaseModel):
 
 
 @app.post("/run")
-async def run(body: Body, _request: Request) -> None:
+async def run(body: Body) -> JobResult:
     """
     Create new job and stream back output line by line.
     """
-    job = Job.create(
-        body.command, body.args, tag=body.tag, timeout=body.timeout
-    )
-    result = app.runner.run(job)
-    return asdict(result)
+    job = await Job(
+        job_id=uuid4().hex,
+        command=body.command,
+        created_at=TimeUtils.utc_now(),
+        args=body.args,
+        tag=body.tag,
+        timeout=body.timeout,
+        status=JobStatus.created,
+    ).create(app.db)
+    result = await app.runner.run(app.db, job)
+    return result.dict()
